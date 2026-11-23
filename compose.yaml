@@ -1,0 +1,62 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ticketflow
+      MYSQL_USER: ticketflow
+      MYSQL_PASSWORD: ${TICKETFLOW_DB_PASSWORD:?Set TICKETFLOW_DB_PASSWORD in .env}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  qdrant:
+    image: qdrant/qdrant:v1.20.2
+    volumes:
+      - qdrant-data:/qdrant/storage
+  business:
+    build:
+      context: .
+      dockerfile: deploy/business.Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      TICKETFLOW_BIND: 0.0.0.0
+      TICKETFLOW_DB_URL: jdbc:mysql://mysql:3306/ticketflow?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      TICKETFLOW_DB_PASSWORD: ${TICKETFLOW_DB_PASSWORD:?Set TICKETFLOW_DB_PASSWORD in .env}
+      TICKETFLOW_AGENT_URL: http://agent:8000
+      TICKETFLOW_INTERNAL_KEY: ${TICKETFLOW_INTERNAL_KEY:?Set TICKETFLOW_INTERNAL_KEY in .env}
+      TICKETFLOW_SUPPORT_PASSWORD: ${TICKETFLOW_SUPPORT_PASSWORD:?Set TICKETFLOW_SUPPORT_PASSWORD in .env}
+      TICKETFLOW_APPROVER_PASSWORD: ${TICKETFLOW_APPROVER_PASSWORD:?Set TICKETFLOW_APPROVER_PASSWORD in .env}
+  agent:
+    build:
+      context: .
+      dockerfile: deploy/agent.Dockerfile
+    restart: on-failure:3
+    depends_on:
+      - qdrant
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      TICKETFLOW_BUSINESS_URL: http://business:8080
+      TICKETFLOW_INTERNAL_KEY: ${TICKETFLOW_INTERNAL_KEY:?Set TICKETFLOW_INTERNAL_KEY in .env}
+      TICKETFLOW_CHECKPOINT_PATH: /data/checkpoints.sqlite
+      TICKETFLOW_EMBED_CACHE: /data/models
+      TICKETFLOW_MODEL: ${TICKETFLOW_MODEL:-deepseek-flash}
+      TICKETFLOW_MODEL_URL: ${TICKETFLOW_MODEL_URL:-https://api.deepseek.com}
+      TICKETFLOW_MODEL_KEY: ${TICKETFLOW_MODEL_KEY:?Set TICKETFLOW_MODEL_KEY in .env}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
+    volumes:
+      - agent-data:/data
+volumes:
+  mysql-data:
+  qdrant-data:
+  agent-data:

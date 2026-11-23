@@ -1,0 +1,15 @@
+server:
+  address: ${TICKETFLOW_BIND:127.0.0.1}
+  port: ${TICKETFLOW_PORT:8080}
+  error:
+    include-message: always
+spring:
+  datasource:
+    url: ${TICKETFLOW_DB_URL:jdbc:mysql://127.0.0.1:3307/ticketflow?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${TICKETFLOW_DB_USER:ticketflow}
+    password: ${TICKETFLOW_DB_PASSWORD}
+ticketflow:
+  agent-url: ${TICKETFLOW_AGENT_URL:http://127.0.0.1:8000}
+  internal-key: ${TICKETFLOW_INTERNAL_KEY}
+  support-password: ${TICKETFLOW_SUPPORT_PASSWORD}
+  approver-password: ${TICKETFLOW_APPROVER_PASSWORD}
